@@ -41,6 +41,11 @@ Sample application:
       resources :users
     end
 
+  rake db:migrate
+  ruby script/server
+
+  and got to url http://localhost:3000/users
+
 
 ActionRespuoce as Merb plugin
 ------------------------------
