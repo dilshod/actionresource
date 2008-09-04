@@ -1,0 +1,87 @@
+<h1><%= @controller.class.name[0..-11].split('::')[-1].humanize %></h1>
+
+<% if options[:filters].is_a?(Array) %>
+  <% form_tag({:action => :index}, :method => :get) do %>
+    <% options[:filters].each do |f| %>
+      <%= f.humanize %>: <input type='text' name="<%=f%>" value='' />
+    <% end %>
+    <%= submit_tag "filter" %>
+  <% end %>
+<% elsif options[:filters].is_a?(String) || options[:filters].is_a?(Symbol) %>
+  <% form_tag({:action => :index}, :method => :get) do %>
+    <%= options[:filters].to_s.humanize %>: <input type='text' name="<%=options[:filters].to_s%>" value='' />
+    <%= submit_tag "filter" %>
+  <% end %>
+<% end %>
+
+<%= link_to "Create new", :action => "new" %>
+<br />
+<br />
+
+<%
+  model = page.items unless model
+  options = {} unless options.is_a?(Array) || options.is_a?(Hash)
+  keys = options.is_a?(Array) ? options.collect{|k| k.to_sym} : (
+     options[:only] ? options[:only].collect{|k| k.to_sym} : (
+       model.empty? ? [] : model[0].attributes.keys - (options[:except] || []).collect{|k| k.to_sym}
+     )
+  )
+%>
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <% keys.each do |k| %>
+        <th><%= k.to_s.humanize %></th>
+      <% end %>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <% i = 0 %>
+  <tbody>
+    <% unless page %>
+      <% model.each do |mod| %>
+        <tr class="line<%= i%2 %>">
+          <th align="right"><%= i+=1 %></th>
+          <% keys.each do |k| %>
+            <td><%= h(mod.send(k)) %></td>
+          <% end %>
+          <td nowrap="true">
+            <%= link_to "show", {:action => "show", :id => mod} %>
+            <%= link_to "edit", {:action => "edit", :id => mod} %>
+            <%= link_to "delete", {:action => "destroy", :id => mod}, :method => :delete, :confirm => "Are you sure?" %>
+          </td>
+        </tr>
+      <% end %>
+
+    <% else %>
+
+      <% page.items.each do |mod| %>
+        <tr class="line<%= i%2 %>">
+          <th align="right"><%= i+=1 %></th>
+          <% keys.each do |k| %>
+            <td><%= h(mod.send(k)) %></td>
+          <% end %>
+          <td nowrap="true">
+            <%= link_to "show", {:action => "show", :id => mod} %>
+            <%= link_to "edit", {:action => "edit", :id => mod} %>
+            <%= link_to "delete", {:action => "destroy", :id => mod}, :method => :delete, :confirm => "Are you sure?" %>
+          </td>
+        </tr>
+      <% end %>
+    <% end %>
+  </tbody>
+</table>
+
+<% if pager && pager.number_of_pages > 1 %>
+  <%= link_to "prev", :action => "index", :page => page.prev.number if page.prev? %>
+  <% (1..pager.number_of_pages).each do |pg| %>
+    <% if page.number == pg %>
+      <b><%= link_to pg, :action => "index", :page => pg %></b>
+    <% else %>
+      <%= link_to pg, :action => "index", :page => pg %>
+    <% end %>
+  <% end %>
+  <%= link_to "next", :action => "index", :page => page.next.number if page.next? %>
+<% end %>

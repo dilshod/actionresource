@@ -1,0 +1,44 @@
+require 'rubygems'
+require 'rake/gempackagetask'
+
+PLUGIN = "actionresource"
+NAME = "actionresource"
+VERSION = "0.2.0"
+AUTHOR = "Dilshod Temirkhodjaev"
+EMAIL = "mainplone@gmail.com"
+HOMEPAGE = "http://merb-plugins.rubyforge.org/actionresource/"
+SUMMARY = "ActionResource plugin for Merb, Rails"
+
+spec = Gem::Specification.new do |s|
+  s.name = NAME
+  s.version = VERSION
+  s.platform = Gem::Platform::RUBY
+  s.has_rdoc = true
+  s.extra_rdoc_files = ["README", "LICENSE", 'TODO']
+  s.summary = SUMMARY
+  s.bindir = "bin"
+  s.description = s.summary
+  s.executables = %w{ actionresource }
+  s.author = AUTHOR
+  s.email = EMAIL
+  s.homepage = HOMEPAGE
+  #s.add_dependency('merb', '>= 0.4.0')
+  s.require_path = 'lib'
+  s.autorequire = PLUGIN
+  s.files = %w(LICENSE README Rakefile TODO) + Dir.glob("{bin,lib,spec}/**/*")
+end
+
+Rake::GemPackageTask.new(spec) do |pkg|
+  pkg.gem_spec = spec
+end
+
+task :install => [:package] do
+  sh %{sudo gem install pkg/#{NAME}-#{VERSION} --no-update-sources}
+end
+
+namespace :jruby do
+  desc "Run :package and install the resulting .gem with jruby"
+  task :install => :package do
+    sh %{#{SUDO} jruby -S gem install pkg/#{NAME}-#{Merb::VERSION}.gem --no-rdoc --no-ri}
+  end
+end

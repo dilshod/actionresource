@@ -1,0 +1,25 @@
+
+2008-feb-12
+  Routers ordering fix to make best ordering
+
+
+2007-dec
+  -1. Model loading in one line
+  *2. Subresources for nil object as
+    resources/resources
+    resource/resources
+  *3. Rename to ActionResource
+
+  *4. conditions, include & others for model
+  *5. to_xml options
+  *6. include pl_resource
+  7. generators
+  *8. ApplicationController inherit to include
+  -9. remove raise AccessDenied from access_methods
+
+  *10. resources with many models
+  *11. include pagination support
+
+  *12. partial resources not Restfull, when only post's (facebook)
+
+  *13. When requesting html but there rjs template, return nothink.

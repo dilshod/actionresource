@@ -1,0 +1,28 @@
+<h1><%= @controller.class.name[0..-11].split('::')[-1].singularize.humanize %></h1>
+<%
+  options = {} unless options.is_a?(Array) || options.is_a?(Hash)
+  keys = options.is_a?(Array) ? options.collect{|k| k.to_sym} : (
+     options[:only] ? options[:only].collect{|k| k.to_sym} : (
+       model.attributes.keys - (options[:except] || []).collect{|k| k.to_sym}
+     )
+  ) - ["id"]
+%>
+
+<% form_for model, :url => {:action => :update}, :method => :put do |f| %>
+  <%= f.error_messages %>
+<table>
+  <tbody>
+  <% keys.each do |key| %>
+    <tr>
+      <th align="right"><%= key.to_s.humanize %>:</th>
+      <td><%= f.text_field key %></td>
+    </tr>
+  <% end %>
+  <tr>
+    <td><%= submit_tag "Update" %></td>
+  </tr>
+  </tbody>
+</table>
+<% end %>
+
+<%= link_to "back", :action => "index" %>
