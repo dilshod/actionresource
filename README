@@ -1,0 +1,47 @@
+ActionResource as Rails plugin
+------------------------------
+
+Install:
+  copy rails folder to vendor/plugins as actionresource.
+  run following commands:
+    cp app/controllers/application.rb app/controllers/application_controller.rb
+    echo '' > app/controllers/application.rb
+
+  change config/routes.rb:
+    ActionController::Routing::Routes.draw do |map|
+      map.build_resources :html => true, :xml => true
+    end
+
+Sample application:
+  now create sample application:
+    ./script/generate model user
+    ./script/generate controller users
+
+  change db/migrate/xxx_create_users.rb to:
+    class CreateUsers < ActiveRecord::Migration
+      def self.up
+        create_table :users do |t|
+          t.string :name
+          t.timestamps
+        end
+      end
+			
+      def self.down
+        drop_table :users
+      end
+    end
+				
+  change app/model/user.rb to:
+    class User < ActiveRecord::Base
+      permalinked_with :id
+    end
+
+  change app/controllers/users_controller.rb to:
+    class UsersController < ApplicationController
+      resources :users
+    end
+
+
+ActionRespuoce as Merb plugin
+------------------------------
+
