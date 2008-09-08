@@ -71,23 +71,43 @@ module ActionResource
         model_name = belongs_to ? "#{belongs_to}.#{model.pluralize}" : "::#{model.camel_case}"
         if paginators.empty?
           # without any pagination
-          models_str = "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
+          if Merb.orm == :datamapper
+            models_str = "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)"
+          else
+            models_str = "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
+          end
         else
           # with pagination
-          models_str = "case params[:format].nil? ? :html : params[:format].to_sym" +
-          paginators.collect do |k, p|
-            <<-eval_str
-              when :#{k}
-                @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}])
-                @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
-                  #{model_name}.find(*[:all, #{model_options.inspect}.update(:limit => per_page, :offset => :offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})])
-                end
-                @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
-            eval_str
-          end.join("\n") +
-          "else\n" +
-            "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
-          "end"
+          models_str = "case params[:format].nil? ? :html : params[:format].to_sym"
+          if Merb.orm == :datamapper
+            models_str+= paginators.collect do |k, p|
+              <<-eval_str
+                when :#{k}
+                  @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)
+                  @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
+                    #{model_name}.all(*[#{model_options.inspect}.update(:limit => per_page, :offset => :offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})].flatten)
+                  end
+                  @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
+              eval_str
+            end.join("\n") +
+            "else\n" +
+              "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)"
+            "end"
+          else
+            models_str+= paginators.collect do |k, p|
+              <<-eval_str
+                when :#{k}
+                  @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}])
+                  @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
+                    #{model_name}.find(*[:all, #{model_options.inspect}.update(:limit => per_page, :offset => :offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})])
+                  end
+                  @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
+              eval_str
+            end.join("\n") +
+            "else\n" +
+              "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
+            "end"
+          end
         end
         #
         model_str = "@#{model.singularize} = #{model_name}.find_by_param(*[params[:id], #{model_options.inspect}]) or raise RecordNotFound"
@@ -123,7 +143,11 @@ module ActionResource
         belongs_to = dependent(klass, model, options)
         model = model.to_s.downcase.singularize
         model_options = options[:model] || {}
-        model_name = belongs_to ? "#{belongs_to}.#{model.singularize}" : "::#{model.camel_case}.find(:first)"
+        if Merb.orm == :datamapper
+          model_name = belongs_to ? "#{belongs_to}.#{model.singularize}" : "::#{model.camel_case}.first"
+        else
+          model_name = belongs_to ? "#{belongs_to}.#{model.singularize}" : "::#{model.camel_case}.find(:first)"
+        end
         model_str = "@#{model.singularize} = #{model_name} or raise RecordNotFound"
         str = <<-eval_str
           def load_model

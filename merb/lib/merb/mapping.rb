@@ -48,7 +48,8 @@ class Merb::Router::Behavior
       end
       if object.constants.include?(name)
         begin
-          c = Object.module_eval("::" + name)
+          #c = Object.module_eval("::" + name)
+          c = object.full_const_get(name)
         rescue NameError => ne
         else
           res = []
@@ -60,7 +61,8 @@ class Merb::Router::Behavior
       #
       if !names.nil? && object.constants.include?(names)
         begin
-          c = Object.module_eval("::" + names)
+          #c = Object.module_eval("::" + names)
+          c = object.full_const_get(names)
         rescue NameError => ne
         else
           res = []

@@ -18,7 +18,9 @@ class ActionResource::NamedRoute
               ps << s
             end
             ps.flatten.reverse.each do |p|
-              url = url.gsub(':' + p, (args.pop || opts.delete(p.to_s) || params[p]).to_s)
+              v = args.pop || opts.delete(p.to_s) || params[p]
+              v = v.to_param if v.respond_to?(:to_param)
+              url = url.gsub(':' + p, v.to_s)
             end
           end
           # format
