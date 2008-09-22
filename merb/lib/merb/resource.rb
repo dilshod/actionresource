@@ -1,15 +1,50 @@
 class ActionResource::Method
   class << self
-    def rebuild(controller, action)
+    def rebuild(controller, action, model, belongs_to, model_name)
       body = []
       add_method(controller, body, "before_" + action)
       add_method_type(controller, body, "before_" + action)
       #
+      if model
+        if action == 'index'
+          body << "  render_resource :ok, @#{model.pluralize}, :paginated => @_paginated, :count => @#{model.pluralize}_count"
+        elsif action == 'show' || action == 'edit'
+          body << "  render_resource :ok, @#{model}"
+        elsif action == 'new'
+          body << "  @#{model} = #{model_name}." + (belongs_to ? "build" : "new")
+          body << "  render_resource :ok, @#{model}"
+        elsif action == 'create'
+          body << "@#{model} = #{model_name}." + (belongs_to ? "build" : "new") + "(params[:#{model}])"
+          body << "if @#{model}.valid?"
+          body << "@#{model}.save"
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
+          body << "  render_resource :ok, @#{model}"
+          body << "else"
+          add_method(controller, body, action + "_error")
+          add_method_type(controller, body, action + "_error")
+          body << "  render_resource :error, @#{model}"
+          body << "end"
+        elsif action == 'update'
+          body << "@#{model}.attributes = params[:#{model}]"
+          body << "if @#{model}.valid?"
+          body << "@#{model}.save"
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
+          body << "  render_resource :ok, @#{model}"
+          body << "else"
+          add_method(controller, body, action + "_error")
+          add_method_type(controller, body, action + "_error")
+          body << "  render_resource :error, @#{model}"
+          body << "end"
+        elsif action == 'destroy'
+          body << "  @#{model}.destroy"
+          body << "  render_resource :ok, @#{model}"
+        end
+      else
+        body << "render"
+      end
       #
-      add_method(controller, body, "after_" + action)
-      add_method_type(controller, body, action)
-      #
-      body << "render"
       body = "def #{action}\n #{body.join("\n ")}\nend"
       if Merb.env == "development"
         puts "==== Compiled method for #{controller.class.name}.#{action}:"
@@ -40,38 +75,39 @@ class Merb::Controller
       options = args[-1].is_a?(Hash) ? args.pop : {}
       model = args[0].nil? ? nil : args[0].to_s
       #
-      ActionResource::Loader.resource(self, model, options)
+      model, belongs_to, model_name = ActionResource::Loader.resource(self, model, options)
       #
       options[:type] = 'resource'
-      module_eval("
+      options[:only]||= (options[:model_only] || options[:models_only]) && ((options[:model_only] || []).to_a + (options[:models_only] || []).to_a)
+      eval_str = "
         class << self
           def resource_setup; #{options.inspect}; end
         end
         " + (
-          ([:new, :create, :show, :edit, :update, :destroy] + options[:collection].to_a + options[:member].to_a).collect do |action|
-            "def #{action}; ActionResource::Method.rebuild(self, '#{action}'); #{action}; end"
+          (options[:only] || ([:new, :create, :show, :edit, :update, :destroy] + options[:collection].to_a + options[:member].to_a)).to_a.flatten.collect do |action|
+            "def #{action}; ActionResource::Method.rebuild(self, '#{action}', #{model.inspect}, #{belongs_to.inspect}, #{model_name.inspect}); #{action}; end"
           end
         ).join("\n")
-      )
+      module_eval(eval_str)
     end
 
     def resources(*args)
       options = args[-1].is_a?(Hash) ? args.pop : {}
       model = args[0]
       #
-      ActionResource::Loader.resources(self, model, options)
+      model, belongs_to, model_name = ActionResource::Loader.resources(self, model, options)
       #
       options[:type] = 'resources'
-      module_eval("
+      eval_str = "
         class << self
           def resource_setup; #{options.inspect}; end
         end
         " + (
-          ([:index, :new, :create, :show, :edit, :update, :destroy] + options[:collection].to_a + options[:member].to_a).collect do |action|
-            "def #{action}; ActionResource::Method.rebuild(self, '#{action}'); #{action}; end"
+          (options[:only] || options[:model_only] || ([:index, :new, :create, :show, :edit, :update, :destroy] + options[:collection].to_a + options[:member].to_a)).to_a.flatten.collect do |action|
+            "def #{action}; ActionResource::Method.rebuild(self, '#{action}', #{model.inspect}, #{belongs_to.inspect}, #{model_name.inspect}); #{action}; end"
           end
         ).join("\n")
-      )
+      module_eval(eval_str)
     end
   end
 end

@@ -2,3 +2,11 @@ actionresource
 ==============
 
 A plugin for the Merb framework that provides ...
+
+1. Defaults
+  Merb::Plugins.config['actionresource'] = {
+    'resources' : {}, # resources default options
+    'resource' : {}, # resource default options
+    'xml' : {}, # xml api rendering default options
+    'js' : {}, # json api rendering default options
+  }

@@ -56,60 +56,81 @@ module ActionResource
       # :html_pagination => {:per_page => 20, :order => "name"}
       #
       def resources(klass, model, options)
-        return "" if model.nil?
+        return nil if model.nil?
+        options = (Merb::Plugins.config[:actionresource][:resources] || {}).merge(options)
         belongs_to = dependent(klass, model, options)
         model = model.to_s.downcase.singularize
         model_options = options[:model] || {}
         #
         paginators = {}
+	has_custom_pagination = false
         options.each do |k, v|
           k = k.to_s.downcase
           next unless k[-11..-1] == '_pagination'
-          paginators[k[0..-12]] = v
+          paginators[k[0..-12]] = (options[:pagination] || {}).merge(v)
+          has_custom_pagination = true
         end
+        paginators['all'] = options[:pagination] if options[:pagination]
         #
         model_name = belongs_to ? "#{belongs_to}.#{model.pluralize}" : "::#{model.camel_case}"
+        models_str =
+          "if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')\n" +
+          "@#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)\n" +
+          (Merb.orm == :datamapper ?
+            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc).to_a : [])].flatten)\n" :
+            "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? "#{params[:sort].gsub(/[^\w_\-]+/, '')} #{params[:dir].gsub(/[^DEASCdeasc]+/, '')}" : nil).flatten)\n"
+          ) + "@_paginated = :offset\nreturn\nend\n"
         if paginators.empty?
           # without any pagination
-          if Merb.orm == :datamapper
-            models_str = "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)"
-          else
-            models_str = "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
-          end
+          models_str+= Merb.orm == :datamapper ? 
+            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)" :
+            "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
         else
           # with pagination
-          models_str = "case params[:format].nil? ? :html : params[:format].to_sym"
-          if Merb.orm == :datamapper
-            models_str+= paginators.collect do |k, p|
+          loader_str = Proc.new do |p|
+            if Merb.orm == :datamapper
               <<-eval_str
-                when :#{k}
-                  @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)
-                  @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
-                    #{model_name}.all(*[#{model_options.inspect}.update(:limit => per_page, :offset => :offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})].flatten)
-                  end
-                  @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
+                @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)
+                @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
+                  #{model_name}.all(*[#{model_options.inspect}.update(:limit => per_page, :offset => offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})].flatten)
+                end
+                @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
+                @#{model.pluralize} = @#{model.pluralize}_page.items
+                @_paginated = :page
               eval_str
-            end.join("\n") +
-            "else\n" +
-              "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)"
-            "end"
+            else
+              <<-eval_str
+                @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}])
+                @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
+                  #{model_name}.find(*[:all, #{model_options.inspect}.update(:limit => per_page, :offset => offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})])
+                end
+                @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
+                @#{model.pluralize} = @#{model.pluralize}_page.items
+                @_paginated = :page
+              eval_str
+            end
+          end
+          if has_custom_pagination
+            models_str+= "case self.content_type"
+            models_str+= paginators.collect do |k, p|
+              k == 'all' ? "" : "when :#{k}\n#{loader_str.call(p)}"
+            end.join("\n")
+            if paginators.keys.include?('all')
+              models_str+= "else\n#{loader_str.call(paginators['all'])}"
+            else
+              models_str+= "else\n" +
+                (Merb.orm == :datamapper ?
+                  "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}].flatten)" :
+                  "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
+                )
+            end
+            models_str+= "end"
           else
-            models_str+= paginators.collect do |k, p|
-              <<-eval_str
-                when :#{k}
-                  @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}])
-                  @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
-                    #{model_name}.find(*[:all, #{model_options.inspect}.update(:limit => per_page, :offset => :offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})])
-                  end
-                  @#{model.pluralize}_page = @#{model.pluralize}_pager.page(params[:page])
-              eval_str
-            end.join("\n") +
-            "else\n" +
-              "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}])"
-            "end"
+            models_str+= loader_str.call(paginators['all'])
           end
         end
         #
+        #new_model = belongs_to ? "@#{model.singularize} = #{model_name}.build(params[:#{model}])" : "@#{model.singularize} = #{model_name}.new(params[:#{model}])"
         model_str = "@#{model.singularize} = #{model_name}.find_by_param(*[params[:id], #{model_options.inspect}]) or raise RecordNotFound"
         #
         str = <<-eval_str
@@ -120,7 +141,7 @@ module ActionResource
           def load_model
             #{model_str}
           end
-          protected :load_models, :load_model
+          private :load_models, :load_model
         eval_str
         #puts "-------------- load models ----------"
         #puts str
@@ -129,31 +150,42 @@ module ActionResource
         # before filter for model load
         opts = {:only => [:show, :edit, :update, :destroy]}
         opts[:only] = options[:model_only] if options[:model_only]
-        opts[:exclude] = options[:model_except] if options[:model_except]
+        if options[:model_except]
+          opts[:only] = nil
+          opts[:exclude] = options[:model_except]
+        end
         klass.send(:before, *[:load_model, opts])
         # before filter for models load
         opts = {:only => :index}
         opts[:only] = options[:models_only] if options[:models_only]
-        opts[:exclude] = options[:models_except] if options[:models_except]
+        if options[:models_except]
+          opts[:only] = nil
+          opts[:exclude] = options[:models_except]
+        end
         klass.send(:before, *[:load_models, opts])
+        # return [model, models]
+        [model.singularize, belongs_to, model_name]
       end
 
       def resource(klass, model, options)
-        return "" if model.nil?
+        return nil if model.nil?
+        options = (Merb::Plugins.config[:actionresource][:resource] || {}).merge(options)
         belongs_to = dependent(klass, model, options)
         model = model.to_s.downcase.singularize
         model_options = options[:model] || {}
+        # load
         if Merb.orm == :datamapper
           model_name = belongs_to ? "#{belongs_to}.#{model.singularize}" : "::#{model.camel_case}.first"
         else
           model_name = belongs_to ? "#{belongs_to}.#{model.singularize}" : "::#{model.camel_case}.find(:first)"
         end
+        #
         model_str = "@#{model.singularize} = #{model_name} or raise RecordNotFound"
         str = <<-eval_str
           def load_model
             #{model_str}
           end
-          protected :load_model
+          private :load_model
         eval_str
         #puts "-------------- load models ----------"
         #puts str
@@ -162,8 +194,13 @@ module ActionResource
         # before filter for model load
         opts = {:only => [:show, :edit, :update, :destroy]}
         opts[:only] = options[:model_only] if options[:model_only]
-        opts[:exclude] = options[:model_except] if options[:model_except]
+        if options[:model_except]
+          opts[:only] = nil
+          opts[:exclude] = options[:model_except]
+        end
         klass.send(:before, *[:load_model, opts])
+        # return model
+        [model.singularize, belongs_to, model_name]
       end
 
     end

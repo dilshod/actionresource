@@ -1,8 +1,9 @@
 class ActionResource::NamedRoute
   class << self
-    def make_method(name, parent_path, path)
+    def make_method(name, parent_path, path, action, resource)
       path = "/" + path if !path.empty? && path[0..0] != '/'
       puts "  #{name}_path: #{parent_path}#{path}" if $DEBUG
+      resource[:controller].module_eval "def _#{action}_path; #{name}_path; end"
       Merb::Controller.module_eval("
         def #{name}_path(*args)
           opts = {}
@@ -41,6 +42,7 @@ class ActionResource::NamedRoute
           end
           url
         end
+        private :#{name}_path
 
         def #{name}_url(*args)
           opts = args[-1].is_a?(Hash) ? args.pop : {}
@@ -54,6 +56,7 @@ class ActionResource::NamedRoute
           args << opts
           \"http://\#{host}\#{port ? ':' + port : ''}\" + #{name}_path(*args)
         end
+        private :#{name}_url
       ")
     end
 
@@ -62,16 +65,16 @@ class ActionResource::NamedRoute
       name = name[0...-("_controller".length)] if name[name.length-"_controller".length..-1] == "_controller"
       name = name.gsub("/", "_")
       #
-      make_method(name.singularize.pluralize, parent_path, resource[:path])
-      make_method(name.singularize, parent_path, resource[:member_path] + "/:id")
-      make_method("edit_" + name.singularize, parent_path, resource[:member_path] + "/:id/edit")
-      make_method("new_" + name.singularize, parent_path, resource[:new_path][1..-1])
+      make_method(name.singularize.pluralize, parent_path, resource[:path], :index, resource)
+      make_method(name.singularize, parent_path, resource[:member_path] + "/:id", :show, resource)
+      make_method("edit_" + name.singularize, parent_path, resource[:member_path] + "/:id/edit", :edit, resource)
+      make_method("new_" + name.singularize, parent_path, resource[:new_path][1..-1], :new, resource)
       #
       resource[:collection].to_a.each do |action|
-        make_method(name.singularize.pluralize + "_" + action.to_s, parent_path, resource[:path] + "/" + action.to_s)
+        make_method(name.singularize.pluralize + "_" + action.to_s , parent_path, resource[:path] + "/" + action.to_s, action, resource)
       end
       resource[:member].to_a.each do |action|
-        make_method(name.singularize + "_" + action.to_s, parent_path, resource[:member_path] + "/:id" + "/" + action.to_s)
+        make_method(name.singularize + "_" + action.to_s, parent_path, resource[:member_path] + "/:id" + "/" + action.to_s, action, resource)
       end
     end
 
@@ -80,12 +83,12 @@ class ActionResource::NamedRoute
       name = name[0...-("_controller".length)] if name[name.length-"_controller".length..-1] == "_controller"
       name = name.gsub("/", "_")
       #
-      make_method(name, parent_path, resource[:path])
-      make_method("edit_" + name, parent_path, resource[:path] + "/edit")
-      make_method("new_" + name, parent_path, resource[:new_path][1..-1])
+      make_method(name, parent_path, resource[:path], :show, resource)
+      make_method("edit_" + name, parent_path, resource[:path] + "/edit", :edit, resource)
+      make_method("new_" + name, parent_path, resource[:new_path][1..-1], :new, resource)
       #
       resource[:member].to_a.each do |action|
-        make_method(name.singularize + "_" + action.to_s, parent_path, resource[:path] + "/" + action.to_s)
+        make_method(name.singularize + "_" + action.to_s, parent_path, resource[:path] + "/" + action.to_s, :action, resource)
       end
     end
   end

@@ -7,6 +7,7 @@
 #  :conditions - additional router match conditions, ex: "env.subdomain == 'main'"
 #  :restfull - restfull route match, default: true
 #  :allowed_method - allowed method (actual only when restfull=false), default: nil
+#  :requirements - match options
 #
 #  :path
 #  :member_path
@@ -30,11 +31,11 @@ class Merb::Router::Behavior
         path = path.singularize
         setup[:path]||= path.pluralize
         setup[:member_path] = (setup[:member_path] || path).to_s
-        setup[:new_path]||= "/" + setup[:member_path] + "/new"
+        setup[:new_path]||= setup[:member_path].blank? ? "/new" : "/" + setup[:member_path] + "/new"
       else
         setup[:path]||= path
         setup[:member_path] = (setup[:member_path] || path).to_s
-        setup[:new_path]||= "/" + setup[:member_path] + "/new"
+        setup[:new_path]||= setup[:member_path].blank? ? "/new" : "/" + setup[:member_path] + "/new"
       end
       #
       # iterate sub resources
@@ -79,10 +80,10 @@ class Merb::Router::Behavior
   def resource_mapping(resource, parent_path)
     if resource[:type] == 'resources'
       parent_m_path, parent_c_path = pl_resources(parent_path, {}, resource[:controller], resource)
-      parent_prefix = ActionResource::NamedRoute.make_named_route_for_resources(parent_path, resource[:controller], resource)
+      ActionResource::NamedRoute.make_named_route_for_resources(parent_path, resource[:controller], resource)
     else
       parent_m_path, parent_c_path = pl_resource(parent_path, {}, resource[:controller], resource)
-      parent_prefix = ActionResource::NamedRoute.make_named_route_for_resource(parent_path, resource[:controller], resource)
+      ActionResource::NamedRoute.make_named_route_for_resource(parent_path, resource[:controller], resource)
     end
     resource[:sub_member].each do |member|
       resource_mapping(member, parent_m_path)

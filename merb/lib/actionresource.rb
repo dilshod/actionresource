@@ -13,6 +13,7 @@ if defined?(Merb::Plugins)
   require 'merb/router'
   require 'merb/named_route'
   require 'merb/mapping'
+  require 'merb/api'
 
   # Merb gives you a Merb::Plugins.config hash...feel free to put your stuff in your piece of it
   Merb::Plugins.config[:actionresource] = {

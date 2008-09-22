@@ -74,4 +74,24 @@ class Merb::Controller
       end
     end
   end
+
+  def render_resource(state, model, *options)
+    # render template if exists
+    if !_template_for(self.action_name + (state == :error ? '_error' : ''), self.content_type, self.controller_name)[0].nil?
+      return render((self.action_name + (state == :error ? '_error' : '')).to_sym)
+    end
+    # default redirects and renders for html
+    if self.content_type == :html && ['create', 'update', 'destroy'].include?(self.action_name)
+      if state == :ok
+        return redirect(_index_path)
+      else
+        return render(self.action_name == 'create' ? :new : :edit)
+      end
+    end
+    # call api for all others
+    raise Merb::ControllerExceptions::TemplateNotFound unless ActionResource::Api.constants.include?(self.content_type.to_s.upcase)
+    options = options[-1].is_a?(Hash) ? options.pop : {}
+    api = ActionResource::Api.full_const_get(self.content_type.to_s.upcase)
+    api.send("when_#{state}", self, *[model, options])
+  end
 end

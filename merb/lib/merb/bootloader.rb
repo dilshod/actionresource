@@ -14,15 +14,28 @@ class Merb::BootLoader::LoadClasses #< Merb::BootLoader
       # Load application file if it exists - for flat applications
       load_file Merb.dir_for(:application) if File.file?(Merb.dir_for(:application))
 
-      # Load classes and their requirements
+      second = []
+      third = []
       Merb.load_paths.each do |component, path|
-        next unless path.last && component != :application && component != :router
+        next unless path.last && component != :application
+        if component.to_s[0..."application".size] == "application"
+          load_classes(path.first / path.last)
+        elsif component.to_s[0..."router".size] != "router"
+          second << path
+        else
+          third << path
+        end
+      end
+
+      # Load classes and their requirements
+      second.each do |path|
         load_classes(path.first / path.last)
       end
 
       # now load router
-      path = Merb.load_paths[:router]
-      load_classes(path.first / path.last)
+      third.each do |path|
+        load_classes(path.first / path.last)
+      end
 
       Merb::Controller.send :include, Merb::GlobalHelpers
     end
