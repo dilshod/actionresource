@@ -42,7 +42,7 @@ class ActionResource::Method
           body << "  render_resource :ok, @#{model}"
         end
       else
-        body << "render"
+        body << "render_resource :ok"
       end
       #
       body = "def #{action}\n #{body.join("\n ")}\nend"

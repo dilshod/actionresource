@@ -1,3 +1,6 @@
+#
+# resources :users, :js => {:only => [:login, :full_name]}
+#
 module ActionResource::Api::JS
   class << self
     def when_ok(controller, model, *args)

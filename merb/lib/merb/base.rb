@@ -60,22 +60,7 @@ class Merb::Controller
     end
   end
 
-  def _call_action(action)
-    begin
-      catch(:halt) do
-        send(action)
-      end
-    rescue TemplateNotFound
-      case action_name.to_sym
-      when :update, :create, :destroy
-        redirect url(:action => :index)
-      else
-        raise
-      end
-    end
-  end
-
-  def render_resource(state, model, *options)
+  def render_resource(state, model=nil, *options)
     # render template if exists
     if !_template_for(self.action_name + (state == :error ? '_error' : ''), self.content_type, self.controller_name)[0].nil?
       return render((self.action_name + (state == :error ? '_error' : '')).to_sym)
@@ -83,13 +68,13 @@ class Merb::Controller
     # default redirects and renders for html
     if self.content_type == :html && ['create', 'update', 'destroy'].include?(self.action_name)
       if state == :ok
-        return redirect(_index_path)
+        return redirect(self.respond_to?(:_index_path) ? _index_path : _show_path)
       else
         return render(self.action_name == 'create' ? :new : :edit)
       end
     end
     # call api for all others
-    raise Merb::ControllerExceptions::TemplateNotFound unless ActionResource::Api.constants.include?(self.content_type.to_s.upcase)
+    raise Merb::ControllerExceptions::TemplateNotFound unless model && ActionResource::Api.constants.include?(self.content_type.to_s.upcase)
     options = options[-1].is_a?(Hash) ? options.pop : {}
     api = ActionResource::Api.full_const_get(self.content_type.to_s.upcase)
     api.send("when_#{state}", self, *[model, options])

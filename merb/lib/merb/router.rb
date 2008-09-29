@@ -80,7 +80,7 @@ class Merb::Router::Behavior
     acts = setup[:restfull] != false ?
       {
         :show => ["", :get], :new => ["/new", :get, setup[:new_path]], :create => ["", :post],
-        :edit => ["/edit", :get], :update => ["/", :put], :destroy => ["", :delete]
+        :edit => ["/edit", :get], :update => ["", :put], :destroy => ["", :delete]
       } : {
         :show => "", :new => "/" + (setup[:new_path] || "new").to_s, :create => "/create",
         :edit => "/edit", :update => "/update", :destroy => "/delete"
