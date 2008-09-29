@@ -7,11 +7,17 @@ class ActionResource::Method
       #
       if model
         if action == 'index'
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model.pluralize}, :paginated => @_paginated, :count => @#{model.pluralize}_count"
         elsif action == 'show' || action == 'edit'
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model}"
         elsif action == 'new'
           body << "  @#{model} = #{model_name}." + (belongs_to ? "build" : "new")
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model}"
         elsif action == 'create'
           body << "@#{model} = #{model_name}." + (belongs_to ? "build" : "new") + "(params[:#{model}])"
@@ -39,9 +45,13 @@ class ActionResource::Method
           body << "end"
         elsif action == 'destroy'
           body << "  @#{model}.destroy"
+          add_method(controller, body, "after_" + action)
+          add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model}"
         end
       else
+        add_method(controller, body, "after_" + action)
+        add_method_type(controller, body, action)
         body << "render_resource :ok"
       end
       #
