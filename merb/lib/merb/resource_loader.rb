@@ -56,10 +56,10 @@ module ActionResource
       # :html_pagination => {:per_page => 20, :order => "name"}
       #
       def resources(klass, model, options)
-        return nil if model.nil?
         options = (Merb::Plugins.config[:actionresource][:resources] || {}).merge(options)
         belongs_to = dependent(klass, model, options)
-        model = model.to_s.downcase.singularize
+        return nil if model.nil?
+        model = model && model.to_s.downcase.singularize
         model_options = options[:model] || {}
         #
         paginators = {}
@@ -168,9 +168,9 @@ module ActionResource
       end
 
       def resource(klass, model, options)
-        return nil if model.nil?
         options = (Merb::Plugins.config[:actionresource][:resource] || {}).merge(options)
         belongs_to = dependent(klass, model, options)
+        return nil if model.nil?
         model = model.to_s.downcase.singularize
         model_options = options[:model] || {}
         # load
