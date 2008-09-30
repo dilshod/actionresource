@@ -77,7 +77,7 @@ module ActionResource
           "if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')\n" +
           "@#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)\n" +
           (Merb.orm == :datamapper ?
-            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc).to_a : [])].flatten)\n" :
+            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? [params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc)] : [])].flatten)\n" :
             "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? "#{params[:sort].gsub(/[^\w_\-]+/, '')} #{params[:dir].gsub(/[^DEASCdeasc]+/, '')}" : nil).flatten)\n"
           ) + "@_paginated = :offset\nreturn\nend\n"
         if paginators.empty?
