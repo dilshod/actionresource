@@ -1,4 +1,15 @@
 class Merb::Router::Behavior
+  def _get_resources_paths(parent_path, setup)
+    path = setup[:path].to_s
+    path = "/" + path unless path.empty?
+    member_path = setup[:member_path].to_s
+    member_path = "/" + member_path unless member_path.empty?
+    return [
+      parent_path + member_path + "/:#{setup[:model].blank? ? member_path[1..-1] : setup[:model].to_s.singular}_id",
+      parent_path + path
+    ]
+  end
+
   def pl_resources(parent_path, parent_conditions, controller, setup)
     actions = setup[:only] ? setup[:only].to_a.map{|a| a.to_sym} :
       [:index, :show, :new, :create, :edit, :update, :destroy]
@@ -45,7 +56,7 @@ class Merb::Router::Behavior
         p, m = parent_path + path + options, method
       end
       match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
-      match_options = match_options.merge(setup[:requirements] || {})
+      match_options = match_options.merge(setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s
       )
@@ -58,15 +69,15 @@ class Merb::Router::Behavior
         p, m = parent_path + member_path + "/:id" + options, method
       end
       match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
-      match_options = match_options.merge(setup[:member_requirements] || setup[:requirements] || {})
+      match_options = match_options.merge(setup[:member_conditions] || setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s
       )
     end
-    return [
-      parent_path + member_path + "/:#{setup[:model].blank? ? member_path[1..-1] : setup[:model].to_s.singular}_id",
-      parent_path + path
-    ]
+    #return [
+    #  parent_path + member_path + "/:#{setup[:model].blank? ? member_path[1..-1] : setup[:model].to_s.singular}_id",
+    #  parent_path + path
+    #]
   end
 
   # singular resource
@@ -106,11 +117,11 @@ class Merb::Router::Behavior
         p, m = parent_path + path + options, method
       end
       match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
-      match_options = match_options.merge(setup[:requirements] || {})
+      match_options = match_options.merge(setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s
       )
     end
-    return [parent_path + path, parent_path + path]
+    #return [parent_path + path, parent_path + path]
   end
 end

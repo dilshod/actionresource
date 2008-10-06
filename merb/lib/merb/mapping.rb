@@ -7,7 +7,6 @@
 #  :conditions - additional router match conditions, ex: "env.subdomain == 'main'"
 #  :restfull - restfull route match, default: true
 #  :allowed_method - allowed method (actual only when restfull=false), default: nil
-#  :requirements - match options
 #
 #  :path
 #  :member_path
@@ -15,6 +14,7 @@
 #
 
 class Merb::Router::Behavior
+private
   def iterate_resources(resources, object)
     object.constants.each do |const_name|
       c = object.module_eval(const_name)
@@ -78,25 +78,32 @@ class Merb::Router::Behavior
   end
 
   def resource_mapping(resource, parent_path)
-    if resource[:type] == 'resources'
-      parent_m_path, parent_c_path = pl_resources(parent_path, {}, resource[:controller], resource)
-      ActionResource::NamedRoute.make_named_route_for_resources(parent_path, resource[:controller], resource)
-    else
-      parent_m_path, parent_c_path = pl_resource(parent_path, {}, resource[:controller], resource)
-      ActionResource::NamedRoute.make_named_route_for_resource(parent_path, resource[:controller], resource)
-    end
+    # sort sub resources
+    resource[:sub_member] = resource[:sub_member].sort_by{|m| (m[:member_path].length + m[:route_weight])*100 + m[:sub_member].size + m[:sub_collection].size}.reverse
+    resource[:sub_collection] = resource[:sub_collection].sort_by{|m| (m[:member_path].length + m[:route_weight])*100 + m[:sub_member].size + m[:sub_collection].size}.reverse
+
+    parent_m_path, parent_c_path = _get_resources_paths(parent_path, resource)
     resource[:sub_member].each do |member|
       resource_mapping(member, parent_m_path)
     end
     resource[:sub_collection].each do |member|
       resource_mapping(member, parent_c_path)
     end
+
+    if resource[:type] == 'resources'
+      pl_resources(parent_path, {}, resource[:controller], resource)
+      ActionResource::NamedRoute.make_named_route_for_resources(parent_path, resource[:controller], resource)
+    else
+      pl_resource(parent_path, {}, resource[:controller], resource)
+      ActionResource::NamedRoute.make_named_route_for_resource(parent_path, resource[:controller], resource)
+    end
   end
 
+public
   def build_resources
     resources = []
     iterate_resources(resources, Object)
-    resources.sort_by{|m| m[:member_path].length + m[:route_weight]}.reverse
+    resources = resources.sort_by{|m| (m[:member_path].length + m[:route_weight])*100 + m[:sub_member].size + m[:sub_collection].size}.reverse
     #
     unless resources.empty?
       resources.each{|resource| resource_mapping(resource, "")}
