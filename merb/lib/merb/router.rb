@@ -2,12 +2,13 @@ class Merb::Router::Behavior
   def _get_resources_paths(parent_path, setup)
     path = setup[:path].to_s
     path = "/" + path unless path.empty?
-    member_path = setup[:member_path].to_s
-    member_path = "/" + member_path unless member_path.empty?
-    return [
-      parent_path + member_path + "/:#{setup[:model].blank? ? member_path[1..-1] : setup[:model].to_s.singular}_id",
-      parent_path + path
-    ]
+    if setup[:type] == 'resources'
+      member_path = setup[:member_path].to_s
+      member_path = "/" + member_path unless member_path.empty?
+      return [parent_path + member_path + "/:#{setup[:model].blank? ? member_path[1..-1] : setup[:model].to_s.singular}_id", parent_path + path]
+    else
+      return [parent_path + path, parent_path + path]
+    end
   end
 
   def pl_resources(parent_path, parent_conditions, controller, setup)
