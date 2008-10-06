@@ -2,25 +2,30 @@ class ActionResource::Method
   class << self
     def rebuild(controller, action, model, belongs_to, model_name)
       body = []
-      add_method(controller, body, "before_" + action)
-      add_method_type(controller, body, "before_" + action)
-      #
       if model
         if action == 'index'
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           add_method(controller, body, "after_" + action)
           add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model.pluralize}, :paginated => @_paginated, :count => @#{model.pluralize}_count"
         elsif action == 'show' || action == 'edit'
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           add_method(controller, body, "after_" + action)
           add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model}"
         elsif action == 'new'
           body << "  @#{model} = #{model_name}." + (belongs_to ? "build" : "new")
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           add_method(controller, body, "after_" + action)
           add_method_type(controller, body, action)
           body << "  render_resource :ok, @#{model}"
         elsif action == 'create'
           body << "@#{model} = #{model_name}." + (belongs_to ? "build" : "new") + "(params[:#{model}])"
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           body << "if @#{model}.valid?"
           body << "@#{model}.save"
           add_method(controller, body, "after_" + action)
@@ -33,6 +38,8 @@ class ActionResource::Method
           body << "end"
         elsif action == 'update'
           body << "@#{model}.attributes = params[:#{model}]"
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           body << "if @#{model}.valid?"
           body << "@#{model}.save"
           add_method(controller, body, "after_" + action)
@@ -44,6 +51,8 @@ class ActionResource::Method
           body << "  render_resource :error, @#{model}"
           body << "end"
         elsif action == 'destroy'
+          add_method(controller, body, "before_" + action)
+          add_method_type(controller, body, "before_" + action)
           body << "  @#{model}.destroy"
           add_method(controller, body, "after_" + action)
           add_method_type(controller, body, action)
