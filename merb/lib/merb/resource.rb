@@ -59,6 +59,8 @@ class ActionResource::Method
           body << "  render_resource :ok, @#{model}"
         end
       else
+        add_method(controller, body, "before_" + action)
+        add_method_type(controller, body, "before_" + action)
         add_method(controller, body, "after_" + action)
         add_method_type(controller, body, action)
         body << "render_resource :ok"
