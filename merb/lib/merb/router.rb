@@ -46,7 +46,7 @@ class Merb::Router::Behavior
       end
     end
     #
-    method = (setup[:only_method] || :get).to_sym
+    method = (setup[:only_method] || :any).to_sym
     collection_acts.each do |action, options|
       next unless actions.include?(action)
       if options.is_a?(Array) && !options[2]
@@ -56,7 +56,8 @@ class Merb::Router::Behavior
       else
         p, m = parent_path + path + options, method
       end
-      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
+      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}}
+      match_options[:method] = m if m != :any
       match_options = match_options.merge(setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s
@@ -69,7 +70,8 @@ class Merb::Router::Behavior
       else
         p, m = parent_path + member_path + "/:id" + options, method
       end
-      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
+      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}}
+      match_options[:method] = m if m != :any
       match_options = match_options.merge(setup[:member_conditions] || setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s
@@ -107,7 +109,7 @@ class Merb::Router::Behavior
       end
     end
     #
-    method = (setup[:only_method] || :get).to_sym
+    method = (setup[:only_method] || :any).to_sym
     acts.each do |action, options|
       next unless actions.include?(action)
       if options.is_a?(Array) && !options[2]
@@ -117,7 +119,8 @@ class Merb::Router::Behavior
       else
         p, m = parent_path + path + options, method
       end
-      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}, :method => m}
+      match_options = {:path => %r{^#{p.gsub(/\/\/+/, "/")}(\.:format)?$}}
+      match_options[:method] = m if m != :any
       match_options = match_options.merge(setup[:conditions] || {})
       match(*[match_options]).to(
         :controller => controller.controller_name.to_s, :action => action.to_s

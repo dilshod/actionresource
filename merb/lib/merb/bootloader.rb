@@ -3,41 +3,45 @@
 #
 class Merb::BootLoader::LoadClasses #< Merb::BootLoader
   class << self
-    # Load all classes inside the load paths.
+
     def run
-      # Add models, controllers, helpers and lib to the load path
-      $LOAD_PATH.unshift Merb.dir_for(:model)
-      $LOAD_PATH.unshift Merb.dir_for(:controller)
-      $LOAD_PATH.unshift Merb.dir_for(:lib)
-      $LOAD_PATH.unshift Merb.dir_for(:helper)
+      # process name you see in ps output
+      $0 = "merb#{" : " + Merb::Config[:name] if Merb::Config[:name]} : master"
+
+      # Log the process configuration user defined signal 1 (SIGUSR1) is received.
+      Merb.trap("USR1") do
+        require "yaml"
+        Merb.logger.fatal! "Configuration:\n#{Merb::Config.to_hash.merge(:pid => $$).to_yaml}\n\n"
+      end
+
+      if Merb::Config[:fork_for_class_load] && !Merb.testing?
+        start_transaction
+      else
+        Merb.trap('INT') do
+          Merb.logger.warn! "Reaping Workers"
+          reap_workers
+        end
+      end
 
       # Load application file if it exists - for flat applications
       load_file Merb.dir_for(:application) if File.file?(Merb.dir_for(:application))
 
-      second = []
-      third = []
+      # Load classes and their requirements for application
       Merb.load_paths.each do |component, path|
-        next unless path.last && component != :application
-        if component.to_s[0..."application".size] == "application"
-          load_classes(path.first / path.last)
-        elsif component.to_s[0..."router".size] != "router"
-          second << path
-        else
-          third << path
-        end
-      end
-
-      # Load classes and their requirements
-      second.each do |path|
+        next if path.last.blank? || component.to_s[0..."application".size] != "application"
         load_classes(path.first / path.last)
       end
 
-      # now load router
-      third.each do |path|
+      # Load classes and their requirements
+      Merb.load_paths.each do |component, path|
+        next if path.last.blank? || component.to_s[0..."application".size] == "application" || component == :router
         load_classes(path.first / path.last)
       end
 
       Merb::Controller.send :include, Merb::GlobalHelpers
+
+      nil
     end
+
   end
 end
