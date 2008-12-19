@@ -63,7 +63,7 @@ module ActionResource
         model_options = options[:model] || {}
         #
         paginators = {}
-	has_custom_pagination = false
+        has_custom_pagination = false
         options.each do |k, v|
           k = k.to_s.downcase
           next unless k[-11..-1] == '_pagination'
@@ -73,13 +73,51 @@ module ActionResource
         paginators['all'] = options[:pagination] if options[:pagination]
         #
         model_name = belongs_to ? "#{belongs_to}.#{model.pluralize}" : "::#{model.camel_case}"
-        models_str =
-          "if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')\n" +
-          "@#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)\n" +
-          (Merb.orm == :datamapper ?
-            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? [params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc)] : [])].flatten)\n" :
-            "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? "#{params[:sort].gsub(/[^\w_\-]+/, '')} #{params[:dir].gsub(/[^DEASCdeasc]+/, '')}" : nil).flatten)\n"
-          ) + "@_paginated = :offset\nreturn\nend\n"
+
+
+        models_str = ""
+#          "if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')\n" +
+#          "@#{model.pluralize}_count = #{model_name}.count(*[#{(model_options.dup.delete_if{|k, v| k.to_s == 'order'}).inspect}].flatten)\n" +
+#          (Merb.orm == :datamapper ?
+#            "@#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? [params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc)] : [])].flatten)\n" :
+#            "@#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? "#{params[:sort].gsub(/[^\w_\-]+/, '')} #{params[:dir].gsub(/[^DEASCdeasc]+/, '')}" : nil).flatten)\n"
+#          ) + "@_paginated = :offset\nreturn\nend\n"
+
+        # extJS support code (grid, filters support) (filters support only for datamapper)
+        if Merb.orm == :datamapper
+          models_str+= "
+            if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')
+              conds = {}
+              (params[:filter] || {}).keys.each do |k|
+                filter = params[:filter][k]
+                name = filter['field']
+                name.send(filter['data']['comparison']) unless filter['data']['comparison'].blank?
+                if filter['data']['type'] == 'date'
+                  conds[name] = DateTime.strptime(filter['data']['value'], '%m/%d/%Y')
+                elsif filter['data']['type'] == 'string'
+                  conds[name.to_sym.like] = '%' + filter['data']['value'] + '%'
+                else
+                  conds[name] = filter['data']['value']
+                end
+              end
+              @#{model.pluralize}_count = #{model_name}.count(*[#{(model_options.dup.delete_if{|k, v| k.to_s == 'order'}).inspect}.merge(conds)].flatten)
+              @#{model.pluralize} = #{model_name}.all(*[#{model_options.inspect}.merge(conds).merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? [params[:sort].to_sym.send(params[:dir] == 'DESC' ? :desc : :asc)] : [])].flatten)
+              @_paginated = :offset
+              return
+            end
+          "
+        else
+          models_str+= "
+            if params[:limit].to_i > 0 && (params[:start].to_i > 0 || params[:start] == '0')
+              @#{model.pluralize}_count = #{model_name}.count(*[#{(model_options.dup.delete_if{|k, v| k.to_s == 'order'}).inspect}].flatten)
+              @#{model.pluralize} = #{model_name}.find(*[:all, #{model_options.inspect}.merge(:limit => params[:limit].to_i, :offset => params[:start].to_i, :order => params[:sort] ? \"#{params[:sort].gsub(/[^\w_\-]+/, '')} #{params[:dir].gsub(/[^DEASCdeasc]+/, '')}\" : nil).flatten)
+              @_paginated = :offset
+              return
+            end
+          "
+        end
+
+
         if paginators.empty?
           # without any pagination
           models_str+= Merb.orm == :datamapper ? 
@@ -90,7 +128,7 @@ module ActionResource
           loader_str = Proc.new do |p|
             if Merb.orm == :datamapper
               <<-eval_str
-                @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}].flatten)
+                @#{model.pluralize}_count = #{model_name}.count(*[#{(model_options.dup.delete_if{|k, v| k.to_s == 'order'}).inspect}].flatten)
                 @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
                   #{model_name}.all(*[#{model_options.inspect}.update(:limit => per_page, :offset => offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})].flatten)
                 end
@@ -100,7 +138,7 @@ module ActionResource
               eval_str
             else
               <<-eval_str
-                @#{model.pluralize}_count = #{model_name}.count(*[#{model_options.inspect}])
+                @#{model.pluralize}_count = #{model_name}.count(*[#{(model_options.dup.delete_if{|k, v| k.to_s == 'order'}).inspect}])
                 @#{model.pluralize}_pager = ::Paginator.new(@#{model.pluralize}_count, #{p[:per_page] || 10}) do |offset, per_page|
                   #{model_name}.find(*[:all, #{model_options.inspect}.update(:limit => per_page, :offset => offset #{p[:order] ? ', :order => ' + p[:order].inspect : ''})])
                 end
