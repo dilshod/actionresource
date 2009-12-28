@@ -50,10 +50,20 @@ module ActionController
       end
     end
 
+    def template_exists?(action_name)
+      begin
+        self.view_paths.find_template(default_template_name(action_name), default_template_format)
+        true
+      rescue
+        false
+      end
+    end
+
     def render_resource(action=nil, else_action=nil, else_redirect=nil, &block)
       action ||= params[:action]
-      return render(:action => action) if template_exists?("#{self.class.controller_path}/#{action}")
-      return render(:partial => action) if template_exists?("#{self.class.controller_path}/_#{action}")
+      #template_exists?(action)
+      return render(:action => action) if template_exists?(action)
+      return render(:partial => action) if template_exists?("_" + action.to_s)
       #return render(:action => action) if (e = template_exists?("#{self.class.controller_path}/#{action}")) && (e[-3..-1] != "rjs" || ![:all, :html].include?(request.format.to_sym))
       #return render(:partial => action) if (e = template_exists?("#{self.class.controller_path}/_#{action}")) && (e[-3..-1] != "rjs" || ![:all, :html].include?(request.format.to_sym))
       return render_resource(else_action, nil, else_redirect) if else_action
