@@ -1,15 +1,19 @@
+module ActionExtensions 
+  def self.included(base)
+    base.extend(ClassMethods)
+  end
+  
+  module ClassMethods
+    def permalinked_with(param)
+      record = class << self; self; end
+      record.send :define_method, :find_by_param, lambda {|*args| record.send "find_by_#{param}", args}
+      record.send :define_method, :to_param, lambda{ param.to_s}  
+    end
+  end
+end
+
 module ActiveRecord
   class Base
-    def self.permalinked_with(key)
-      self.module_eval <<-eval_str
-        def self.find_by_param *params
-          self.find_by_#{key}(*params)
-	end
-
-        def to_param
-          self.#{key}.to_s
-        end
-      eval_str
-    end
+    include ActionExtensions
   end
 end
