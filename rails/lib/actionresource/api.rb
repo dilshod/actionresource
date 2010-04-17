@@ -46,7 +46,7 @@ module ActionController
       options[:except] ||= self.class.resource_options[:except_fields]
       options[:filters] ||= self.class.resource_options[:filters]
       options = { :only => options } if options.is_a?(Array)
-      render_with_a_layout :file => path, :use_full_path => false, :layout => true,
+      render :file => path, :use_full_path => false, :layout => true,
         :locals => {
           :model => model, :options => options || {},
           :page => page, :pager => pager
@@ -72,7 +72,7 @@ module ActionController
       options[:only] ||= self.class.resource_options[:only_fields]
       options[:except] ||= self.class.resource_options[:except_fields]
       options = { :only => options } if options.is_a?(Array)
-      render_with_a_layout :file => path, :use_full_path => false, :layout => false,
+      render :file => path, :use_full_path => false, :layout => false,
         :locals => {
           :model => model, :options => options || {},
           :page => page, :pager => pager
