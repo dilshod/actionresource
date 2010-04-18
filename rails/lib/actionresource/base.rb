@@ -67,7 +67,7 @@ module ActionController
       #return render(:action => action) if (e = template_exists?("#{self.class.controller_path}/#{action}")) && (e[-3..-1] != "rjs" || ![:all, :html].include?(request.format.to_sym))
       #return render(:partial => action) if (e = template_exists?("#{self.class.controller_path}/_#{action}")) && (e[-3..-1] != "rjs" || ![:all, :html].include?(request.format.to_sym))
       return render_resource(else_action, nil, else_redirect) if else_action
-      redirect_to :action => else_redirect if else_redirect
+      redirect_to :action => else_redirect if else_redirect && request.format.to_sym == :html
     end
   end
 end
